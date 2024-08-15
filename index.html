@@ -1,6 +1,47 @@
 <html>
 <head>
 <link rel="stylesheet" href="button.css">
+  <script type="text/javascript">
+    function getVote(int)
+    {
+    if (window.XMLHttpRequest)
+      {// code for IE7+, Firefox, Chrome, Opera, Safari
+      xmlhttp=new XMLHttpRequest();
+      }
+    else
+      {// code for IE6, IE5
+      xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+      }
+    xmlhttp.onreadystatechange=function()
+      {
+      if (xmlhttp.readyState==4 && xmlhttp.status==200)
+        {
+        document.getElementById("poll").innerHTML=xmlhttp.responseText;
+        }
+      }
+    xmlhttp.open("GET","poll_vote.php?vote="+int,true);
+    xmlhttp.send();
+
+
+    if(typeof(Storage)!=="undefined")
+      {
+      if (localStorage.clickcount)
+        {
+        localStorage.clickcount=Number(localStorage.clickcount)+1;
+        }
+      else
+        {
+        localStorage.clickcount=1;
+        }
+      document.getElementById("result").innerHTML="You have voted " + localStorage.clickcount + " times before this session";
+      }
+    else
+      {
+      document.getElementById("result").innerHTML="Sorry, your browser does not support web storage...";
+      }
+    }
+
+    </script>
 </head>
 <body>
  <script>
@@ -26,6 +67,7 @@
   <button class="subscribe">Click me daddy!</button> 
   <button class="join">Click me daddy!</button>
   <button class="tweet">Click me daddy!</button>
+     <input type="Button" class="voteButton" name="vote" value="Vote" onclick="getVote(this.value)" />
 
  
 <h1>Jainwin</h1>
