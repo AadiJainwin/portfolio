@@ -3,6 +3,19 @@
 <link rel="stylesheet" href="button.css">
 </head>
 <body>
+ <script>
+     var clicks = 0;
+    function myFunction() {
+
+        clicks += 1;
+        document.getElementById("demo").innerHTML = clicks;
+
+
+    }
+</script>
+<button onclick="myFunction()">Click me</button>
+
+<p id="demo"></p>
  <p>BEFORE CSS</p>
   <button>SUBSCRIBE</button> 
   <button>JOIN</button>
