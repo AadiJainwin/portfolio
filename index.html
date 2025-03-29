@@ -1,478 +1,564 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as Tone from 'tone';
-
-const RealisticPiano = () => {
-  const [activeKeys, setActiveKeys] = useState({});
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentSong, setCurrentSong] = useState(null);
-  const [toneSetting, setToneSetting] = useState(50);
-  const pianoRef = useRef(null);
-  const synths = useRef({});
-  
-  // Define piano keys
-  const whiteKeys = [
-    { note: 'C3', key: 'z' },
-    { note: 'D3', key: 'x' },
-    { note: 'E3', key: 'c' },
-    { note: 'F3', key: 'v' },
-    { note: 'G3', key: 'b' },
-    { note: 'A3', key: 'n' },
-    { note: 'B3', key: 'm' },
-    { note: 'C4', key: 'a' },
-    { note: 'D4', key: 's' },
-    { note: 'E4', key: 'd' },
-    { note: 'F4', key: 'f' },
-    { note: 'G4', key: 'g' },
-    { note: 'A4', key: 'h' },
-    { note: 'B4', key: 'j' },
-    { note: 'C5', key: 'k' },
-    { note: 'D5', key: 'l' },
-    { note: 'E5', key: ';' }
-  ];
-  
-  const blackKeys = [
-    { note: 'C#3', key: 'q' },
-    { note: 'D#3', key: 'w' },
-    { note: 'F#3', key: 'e' },
-    { note: 'G#3', key: 'r' },
-    { note: 'A#3', key: 't' },
-    { note: 'C#4', key: 'y' },
-    { note: 'D#4', key: 'u' },
-    { note: 'F#4', key: 'i' },
-    { note: 'G#4', key: 'o' },
-    { note: 'A#4', key: 'p' },
-    { note: 'C#5', key: '[' },
-    { note: 'D#5', key: ']' }
-  ];
-  
-  // Define songs (simplified versions)
-  const songs = {
-    twinkle: {
-      name: "Twinkle Twinkle Little Star",
-      notes: [
-        { note: 'C4', time: 0 },
-        { note: 'C4', time: 0.5 },
-        { note: 'G4', time: 1 },
-        { note: 'G4', time: 1.5 },
-        { note: 'A4', time: 2 },
-        { note: 'A4', time: 2.5 },
-        { note: 'G4', time: 3, duration: 1 },
-        { note: 'F4', time: 4 },
-        { note: 'F4', time: 4.5 },
-        { note: 'E4', time: 5 },
-        { note: 'E4', time: 5.5 },
-        { note: 'D4', time: 6 },
-        { note: 'D4', time: 6.5 },
-        { note: 'C4', time: 7, duration: 1 }
-      ]
-    },
-    furElise: {
-      name: "Für Elise",
-      notes: [
-        { note: 'E5', time: 0 },
-        { note: 'D#5', time: 0.5 },
-        { note: 'E5', time: 1 },
-        { note: 'D#5', time: 1.5 },
-        { note: 'E5', time: 2 },
-        { note: 'B4', time: 2.5 },
-        { note: 'D5', time: 3 },
-        { note: 'C5', time: 3.5 },
-        { note: 'A4', time: 4, duration: 1 },
-        { note: 'C4', time: 5 },
-        { note: 'E4', time: 5.5 },
-        { note: 'A4', time: 6 },
-        { note: 'B4', time: 6.5 },
-        { note: 'C5', time: 7 }
-      ]
-    },
-    moonlight: {
-      name: "Moonlight Sonata",
-      notes: [
-        { note: 'C#4', time: 0, duration: 0.5 },
-        { note: 'G#4', time: 0, duration: 0.5 },
-        { note: 'C#5', time: 0, duration: 0.5 },
-        { note: 'C#4', time: 1, duration: 0.5 },
-        { note: 'G#4', time: 1, duration: 0.5 },
-        { note: 'C#5', time: 1, duration: 0.5 },
-        { note: 'C#4', time: 2, duration: 0.5 },
-        { note: 'G#4', time: 2, duration: 0.5 },
-        { note: 'C#5', time: 2, duration: 0.5 },
-        { note: 'D#4', time: 3, duration: 0.5 },
-        { note: 'G#4', time: 3, duration: 0.5 },
-        { note: 'C#5', time: 3, duration: 0.5 }
-      ]
-    },
-    canon: {
-      name: "Canon in D",
-      notes: [
-        { note: 'F#4', time: 0 },
-        { note: 'E4', time: 0.5 },
-        { note: 'D4', time: 1 },
-        { note: 'C#4', time: 1.5 },
-        { note: 'B3', time: 2 },
-        { note: 'A3', time: 2.5 },
-        { note: 'B3', time: 3 },
-        { note: 'C#4', time: 3.5 },
-        { note: 'D4', time: 4 },
-        { note: 'C#4', time: 4.5 },
-        { note: 'B3', time: 5 },
-        { note: 'A3', time: 5.5 },
-        { note: 'G3', time: 6 },
-        { note: 'F#3', time: 6.5 },
-        { note: 'G3', time: 7 },
-        { note: 'A3', time: 7.5 }
-      ]
-    }
-  };
-
-  // Initialize Tone.js synths
-  useEffect(() => {
-    // Create synths for each key
-    const allKeys = [...whiteKeys, ...blackKeys];
-    allKeys.forEach(key => {
-      // Create a more soothing piano sound with reverb
-      const synth = new Tone.Synth({
-        oscillator: {
-          type: 'sine'
-        },
-        envelope: {
-          attack: 0.02,
-          decay: 0.1,
-          sustain: 0.8,
-          release: 2
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Piano</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
         }
-      });
-      
-      // Add effects for a more realistic piano sound
-      const filter = new Tone.Filter(2000, "lowpass");
-      const reverb = new Tone.Reverb(1.5);
-      
-      // Connect the signal chain
-      synth.connect(filter);
-      filter.connect(reverb);
-      reverb.toDestination();
-      
-      synths.current[key.note] = {
-        synth,
-        filter,
-        reverb
-      };
-    });
-    
-    // Cleanup function
-    return () => {
-      Object.values(synths.current).forEach(({ synth, filter, reverb }) => {
-        synth.dispose();
-        filter.dispose();
-        reverb.dispose();
-      });
-    };
-  }, []);
-
-  // Update tone settings when slider changes
-  useEffect(() => {
-    Object.values(synths.current).forEach(({ synth, filter }) => {
-      // Adjust filter frequency based on tone slider
-      const frequency = 1000 + (toneSetting * 50); // 1000Hz to 6000Hz
-      filter.frequency.value = frequency;
-      
-      // Adjust oscillator type for tonal quality
-      if (toneSetting < 25) {
-        synth.oscillator.type = 'sine';
-      } else if (toneSetting < 50) {
-        synth.oscillator.type = 'triangle';
-      } else if (toneSetting < 75) {
-        synth.oscillator.type = 'sine8';
-      } else {
-        synth.oscillator.type = 'sine4';
-      }
-    });
-  }, [toneSetting]);
-
-  // Play a note
-  const playNote = (note) => {
-    if (synths.current[note]) {
-      synths.current[note].synth.triggerAttack(note);
-      setActiveKeys(prev => ({ ...prev, [note]: true }));
-    }
-  };
-
-  // Stop a note
-  const stopNote = (note) => {
-    if (synths.current[note]) {
-      synths.current[note].synth.triggerRelease();
-      setActiveKeys(prev => {
-        const newState = { ...prev };
-        delete newState[note];
-        return newState;
-      });
-    }
-  };
-
-  // Handle keyboard input
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      const whiteKey = whiteKeys.find(k => k.key === e.key.toLowerCase());
-      const blackKey = blackKeys.find(k => k.key === e.key.toLowerCase());
-      const key = whiteKey || blackKey;
-      
-      if (key && !activeKeys[key.note]) {
-        playNote(key.note);
-      }
-    };
-    
-    const handleKeyUp = (e) => {
-      const whiteKey = whiteKeys.find(k => k.key === e.key.toLowerCase());
-      const blackKey = blackKeys.find(k => k.key === e.key.toLowerCase());
-      const key = whiteKey || blackKey;
-      
-      if (key) {
-        stopNote(key.note);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [activeKeys]);
-
-  // Play a song
-  const playSong = (songKey) => {
-    if (isPlaying) {
-      Tone.Transport.cancel();
-      setIsPlaying(false);
-      setCurrentSong(null);
-      return;
-    }
-    
-    setIsPlaying(true);
-    setCurrentSong(songKey);
-    
-    const song = songs[songKey];
-    
-    // Start the transport
-    Tone.Transport.cancel();
-    Tone.Transport.start();
-    
-    // Schedule all notes
-    const noteEvents = [];
-    
-    song.notes.forEach(({ note, time, duration = 0.2 }) => {
-      const id = Tone.Transport.schedule((time) => {
-        playNote(note);
-        setTimeout(() => stopNote(note), duration * 1000);
-      }, time);
-      noteEvents.push(id);
-    });
-    
-    // Stop playing after the song ends
-    const songDuration = Math.max(...song.notes.map(n => n.time + (n.duration || 0.5))) + 1;
-    
-    Tone.Transport.schedule(() => {
-      setIsPlaying(false);
-      setCurrentSong(null);
-      Tone.Transport.stop();
-    }, songDuration);
-    
-    // Return a function to cancel the song
-    return () => {
-      noteEvents.forEach(id => Tone.Transport.clear(id));
-      Tone.Transport.stop();
-      setIsPlaying(false);
-      setCurrentSong(null);
-    };
-  };
-
-  return (
-    <div className="p-6 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg shadow-2xl overflow-hidden">
-      <h2 className="text-2xl font-bold mb-4 text-white">Realistic Piano</h2>
-      
-      {/* Piano Body */}
-      <div className="relative bg-gray-900 p-4 rounded-lg overflow-x-auto" style={{ perspective: "800px" }}>
-        <div ref={pianoRef} 
-          className="w-full transform-gpu rotate-x-5 transform-style-3d" 
-          style={{ 
-            transformStyle: "preserve-3d", 
-            transform: "rotateX(5deg)",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.6)"
-          }}
-        >
-          {/* Piano Wood Frame */}
-          <div className="bg-gradient-to-b from-amber-800 to-amber-950 p-4 rounded-t-lg">
-            <div className="flex mb-2 justify-between items-center">
-              <div className="text-amber-200 text-sm italic">Grand Piano</div>
-              <div className="text-amber-200 text-xs">Handcrafted</div>
+        
+        .piano-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #333, #222);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .piano {
+            position: relative;
+            height: 240px;
+            background-color: #222;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5) inset;
+            padding: 10px;
+        }
+        
+        .piano-frame {
+            background: linear-gradient(to bottom, #8B4513, #5D2906);
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: -1px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+        
+        .piano-frame-inner {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            color: #e0c080;
+            font-style: italic;
+        }
+        
+        .keys-container {
+            position: relative;
+            height: 200px;
+            display: flex;
+            border-radius: 0 0 5px 5px;
+            overflow: hidden;
+        }
+        
+        .white-key {
+            flex: 1;
+            background: linear-gradient(to bottom, #f5f5f5, #fff);
+            border-left: 1px solid #ccc;
+            border-radius: 0 0 4px 4px;
+            height: 100%;
+            position: relative;
+            transition: all 0.1s;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+        
+        .white-key:first-child {
+            border-left: none;
+        }
+        
+        .white-key.active {
+            background: linear-gradient(to bottom, #e0e0e0, #f5f5f5);
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+        
+        .black-keys {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            pointer-events: none;
+        }
+        
+        .black-key {
+            position: absolute;
+            width: 4%;
+            height: 100%;
+            background: linear-gradient(to bottom, #333, #000);
+            border-radius: 0 0 4px 4px;
+            z-index: 10;
+            pointer-events: auto;
+            transition: all 0.1s;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+        }
+        
+        .black-key.active {
+            background: linear-gradient(to bottom, #444, #111);
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+        
+        .key-label {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .black-key .key-label {
+            color: #ddd;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #ddd;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #555;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4A90E2;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .song-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .song-button {
+            background-color: #444;
+            color: #ddd;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .song-button:hover {
+            background-color: #555;
+        }
+        
+        .song-button.active {
+            background-color: #4A90E2;
+            color: white;
+        }
+        
+        .keyboard-help {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="piano-container">
+        <h1>Piano Player</h1>
+        
+        <div class="piano-frame">
+            <div class="piano-frame-inner">
+                <span>Grand Piano</span>
+                <span>Handcrafted</span>
             </div>
-            
-            {/* Piano Keys Container */}
-            <div className="relative flex h-64 overflow-hidden rounded-b-sm">
-              {/* White Keys */}
-              {whiteKeys.map((key, index) => (
-                <div 
-                  key={`white-${key.note}`}
-                  className={`relative flex-1 bg-gradient-to-b from-gray-100 to-white border-l border-gray-200 first:border-l-0 rounded-b-md ${activeKeys[key.note] ? 'bg-gray-200 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    height: "100%",
-                    boxShadow: activeKeys[key.note] ? "none" : "0 5px 10px rgba(0,0,0,0.2)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote(key.note)}
-                  onMouseUp={() => stopNote(key.note)}
-                  onMouseLeave={() => activeKeys[key.note] && stopNote(key.note)}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-400 text-xs">{key.key}</div>
-                </div>
-              ))}
-              
-              {/* Black Keys */}
-              <div className="absolute top-0 left-0 w-full flex h-2/3">
-                {/* C#3 */}
-                <div className="w-1/2" style={{ marginRight: "1.75%" }}></div>
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['C#3'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['C#3'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('C#3')}
-                  onMouseUp={() => stopNote('C#3')}
-                  onMouseLeave={() => activeKeys['C#3'] && stopNote('C#3')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">q</div>
-                </div>
-                
-                {/* D#3 */}
-                <div className="w-6" style={{ marginRight: "1.5%" }}></div>
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['D#3'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['D#3'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('D#3')}
-                  onMouseUp={() => stopNote('D#3')}
-                  onMouseLeave={() => activeKeys['D#3'] && stopNote('D#3')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">w</div>
-                </div>
-                
-                {/* Space for E to F */}
-                <div className="w-7" style={{ marginRight: "2.5%" }}></div>
-                
-                {/* F#3 */}
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['F#3'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['F#3'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('F#3')}
-                  onMouseUp={() => stopNote('F#3')}
-                  onMouseLeave={() => activeKeys['F#3'] && stopNote('F#3')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">e</div>
-                </div>
-                
-                {/* G#3 */}
-                <div className="w-6" style={{ marginRight: "1.5%" }}></div>
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['G#3'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['G#3'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('G#3')}
-                  onMouseUp={() => stopNote('G#3')}
-                  onMouseLeave={() => activeKeys['G#3'] && stopNote('G#3')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">r</div>
-                </div>
-                
-                {/* A#3 */}
-                <div className="w-6" style={{ marginRight: "1.5%" }}></div>
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['A#3'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['A#3'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('A#3')}
-                  onMouseUp={() => stopNote('A#3')}
-                  onMouseLeave={() => activeKeys['A#3'] && stopNote('A#3')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">t</div>
-                </div>
-                
-                {/* Space for B to C */}
-                <div className="w-7" style={{ marginRight: "2.5%" }}></div>
-                
-                {/* C#4 - Second octave */}
-                <div 
-                  className={`w-5 h-full bg-gradient-to-b from-gray-900 to-black -mx-3 z-10 rounded-b-sm ${activeKeys['C#4'] ? 'bg-gray-700 translate-y-1' : ''} transition-transform`}
-                  style={{
-                    boxShadow: activeKeys['C#4'] ? "none" : "0 3px 5px rgba(0,0,0,0.5)",
-                    transformOrigin: "top center"
-                  }}
-                  onMouseDown={() => playNote('C#4')}
-                  onMouseUp={() => stopNote('C#4')}
-                  onMouseLeave={() => activeKeys['C#4'] && stopNote('C#4')}
-                >
-                  <div className="absolute bottom-2 left-0 right-0 text-center text-gray-500 text-xs">y</div>
-                </div>
-                
-                {/* And continue for all remaining black keys... */}
-                {/* For brevity, not all black keys are shown but would follow the same pattern */}
-              </div>
-            </div>
-          </div>
         </div>
         
-        {/* Control Panel */}
-        <div className="mt-6 p-4 bg-gray-800 rounded-md shadow-inner">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Tone Adjustment</label>
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={toneSetting} 
-              onChange={(e) => setToneSetting(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Mellow</span>
-              <span>Bright</span>
+        <div class="piano">
+            <div class="keys-container">
+                <!-- White keys -->
+                <div class="white-key" data-note="C3"><div class="key-label">Z</div></div>
+                <div class="white-key" data-note="D3"><div class="key-label">X</div></div>
+                <div class="white-key" data-note="E3"><div class="key-label">C</div></div>
+                <div class="white-key" data-note="F3"><div class="key-label">V</div></div>
+                <div class="white-key" data-note="G3"><div class="key-label">B</div></div>
+                <div class="white-key" data-note="A3"><div class="key-label">N</div></div>
+                <div class="white-key" data-note="B3"><div class="key-label">M</div></div>
+                <div class="white-key" data-note="C4"><div class="key-label">A</div></div>
+                <div class="white-key" data-note="D4"><div class="key-label">S</div></div>
+                <div class="white-key" data-note="E4"><div class="key-label">D</div></div>
+                <div class="white-key" data-note="F4"><div class="key-label">F</div></div>
+                <div class="white-key" data-note="G4"><div class="key-label">G</div></div>
+                <div class="white-key" data-note="A4"><div class="key-label">H</div></div>
+                <div class="white-key" data-note="B4"><div class="key-label">J</div></div>
+                <div class="white-key" data-note="C5"><div class="key-label">K</div></div>
+                
+                <!-- Black keys -->
+                <div class="black-keys">
+                    <div class="black-key" style="left: 7%;" data-note="C#3"><div class="key-label">Q</div></div>
+                    <div class="black-key" style="left: 14%;" data-note="D#3"><div class="key-label">W</div></div>
+                    <div class="black-key" style="left: 27%;" data-note="F#3"><div class="key-label">E</div></div>
+                    <div class="black-key" style="left: 34%;" data-note="G#3"><div class="key-label">R</div></div>
+                    <div class="black-key" style="left: 40%;" data-note="A#3"><div class="key-label">T</div></div>
+                    <div class="black-key" style="left: 53%;" data-note="C#4"><div class="key-label">Y</div></div>
+                    <div class="black-key" style="left: 60%;" data-note="D#4"><div class="key-label">U</div></div>
+                    <div class="black-key" style="left: 73%;" data-note="F#4"><div class="key-label">I</div></div>
+                    <div class="black-key" style="left: 80%;" data-note="G#4"><div class="key-label">O</div></div>
+                    <div class="black-key" style="left: 87%;" data-note="A#4"><div class="key-label">P</div></div>
+                </div>
             </div>
-          </div>
-          
-          {/* Song Selection */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Play Song</label>
-            <div className="grid grid-cols-2 gap-2">
-              {Object.entries(songs).map(([key, song]) => (
-                <button
-                  key={key}
-                  onClick={() => playSong(key)}
-                  className={`py-2 px-4 text-sm rounded-md ${currentSong === key ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                >
-                  {isPlaying && currentSong === key ? 'Stop' : song.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-400">
-            <p>Keyboard shortcuts: Use keys A-L for white keys (C4-C5) and Z-M for lower octave (C3-B3).</p>
-            <p>Black keys: Q-P for sharps.</p>
-          </div>
         </div>
-      </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="tone-control">Tone Adjustment</label>
+                <input type="range" id="tone-control" min="0" max="100" value="50">
+                <div class="range-labels">
+                    <span>Mellow</span>
+                    <span>Bright</span>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Play Song</label>
+                <div class="song-buttons">
+                    <button class="song-button" data-song="twinkle">Twinkle Little Star</button>
+                    <button class="song-button" data-song="furElise">Für Elise</button>
+                    <button class="song-button" data-song="moonlight">Moonlight Sonata</button>
+                    <button class="song-button" data-song="canon">Canon in D</button>
+                </div>
+            </div>
+            
+            <div class="keyboard-help">
+                <p>Keyboard: Use Z-M for lower octave (C3-B3) and A-K for upper octave (C4-C5). Black keys: Q-P</p>
+            </div>
+        </div>
     </div>
-  );
-};
 
-export default RealisticPiano;
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Tone.js
+            Tone.start();
+            
+            // Create a reverb effect
+            const reverb = new Tone.Reverb({
+                decay: 1.5,
+                wet: 0.3
+            }).toDestination();
+            
+            // Create a filter
+            const filter = new Tone.Filter({
+                frequency: 3000,
+                type: "lowpass"
+            }).connect(reverb);
+            
+            // Create synth
+            const synth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: {
+                    type: "triangle"
+                },
+                envelope: {
+                    attack: 0.02,
+                    decay: 0.1,
+                    sustain: 0.8,
+                    release: 2
+                }
+            }).connect(filter);
+            
+            // Tone control
+            const toneControl = document.getElementById('tone-control');
+            toneControl.addEventListener('input', function() {
+                const value = parseInt(this.value);
+                // Adjust filter frequency based on tone slider
+                const frequency = 1000 + (value * 50); // 1000Hz to 6000Hz
+                filter.frequency.value = frequency;
+                
+                // Adjust oscillator type for tonal quality
+                if (value < 25) {
+                    synth.set({ oscillator: { type: 'sine' } });
+                } else if (value < 50) {
+                    synth.set({ oscillator: { type: 'triangle' } });
+                } else if (value < 75) {
+                    synth.set({ oscillator: { type: 'sine8' } });
+                } else {
+                    synth.set({ oscillator: { type: 'sine4' } });
+                }
+            });
+            
+            // Songs data
+            const songs = {
+                twinkle: [
+                    { note: 'C4', time: 0 },
+                    { note: 'C4', time: 0.5 },
+                    { note: 'G4', time: 1 },
+                    { note: 'G4', time: 1.5 },
+                    { note: 'A4', time: 2 },
+                    { note: 'A4', time: 2.5 },
+                    { note: 'G4', time: 3, duration: 1 },
+                    { note: 'F4', time: 4 },
+                    { note: 'F4', time: 4.5 },
+                    { note: 'E4', time: 5 },
+                    { note: 'E4', time: 5.5 },
+                    { note: 'D4', time: 6 },
+                    { note: 'D4', time: 6.5 },
+                    { note: 'C4', time: 7, duration: 1 }
+                ],
+                furElise: [
+                    { note: 'E5', time: 0 },
+                    { note: 'D#5', time: 0.5 },
+                    { note: 'E5', time: 1 },
+                    { note: 'D#5', time: 1.5 },
+                    { note: 'E5', time: 2 },
+                    { note: 'B4', time: 2.5 },
+                    { note: 'D5', time: 3 },
+                    { note: 'C5', time: 3.5 },
+                    { note: 'A4', time: 4, duration: 1 },
+                    { note: 'C4', time: 5 },
+                    { note: 'E4', time: 5.5 },
+                    { note: 'A4', time: 6 },
+                    { note: 'B4', time: 6.5 },
+                    { note: 'C5', time: 7 }
+                ],
+                moonlight: [
+                    { note: 'C#4', time: 0, duration: 0.5 },
+                    { note: 'G#4', time: 0, duration: 0.5 },
+                    { note: 'C#5', time: 0, duration: 0.5 },
+                    { note: 'C#4', time: 1, duration: 0.5 },
+                    { note: 'G#4', time: 1, duration: 0.5 },
+                    { note: 'C#5', time: 1, duration: 0.5 },
+                    { note: 'C#4', time: 2, duration: 0.5 },
+                    { note: 'G#4', time: 2, duration: 0.5 },
+                    { note: 'C#5', time: 2, duration: 0.5 },
+                    { note: 'D#4', time: 3, duration: 0.5 },
+                    { note: 'G#4', time: 3, duration: 0.5 },
+                    { note: 'C#5', time: 3, duration: 0.5 }
+                ],
+                canon: [
+                    { note: 'F#4', time: 0 },
+                    { note: 'E4', time: 0.5 },
+                    { note: 'D4', time: 1 },
+                    { note: 'C#4', time: 1.5 },
+                    { note: 'B3', time: 2 },
+                    { note: 'A3', time: 2.5 },
+                    { note: 'B3', time: 3 },
+                    { note: 'C#4', time: 3.5 },
+                    { note: 'D4', time: 4 },
+                    { note: 'C#4', time: 4.5 },
+                    { note: 'B3', time: 5 },
+                    { note: 'A3', time: 5.5 },
+                    { note: 'G3', time: 6 },
+                    { note: 'F#3', time: 6.5 },
+                    { note: 'G3', time: 7 },
+                    { note: 'A3', time: 7.5 }
+                ]
+            };
+            
+            // Track active notes
+            const activeNotes = {};
+            
+            // Piano key DOM elements
+            const whiteKeys = document.querySelectorAll('.white-key');
+            const blackKeys = document.querySelectorAll('.black-key');
+            
+            // Add event listeners to all keys
+            const allKeys = [...whiteKeys, ...blackKeys];
+            allKeys.forEach(key => {
+                key.addEventListener('mousedown', () => {
+                    const note = key.dataset.note;
+                    playNote(note);
+                    key.classList.add('active');
+                });
+                
+                key.addEventListener('mouseup', () => {
+                    const note = key.dataset.note;
+                    stopNote(note);
+                    key.classList.remove('active');
+                });
+                
+                key.addEventListener('mouseleave', () => {
+                    const note = key.dataset.note;
+                    if (activeNotes[note]) {
+                        stopNote(note);
+                        key.classList.remove('active');
+                    }
+                });
+            });
+            
+            // Keyboard shortcuts
+            const keyboardMap = {
+                'z': 'C3', 'x': 'D3', 'c': 'E3', 'v': 'F3', 'b': 'G3', 'n': 'A3', 'm': 'B3',
+                'a': 'C4', 's': 'D4', 'd': 'E4', 'f': 'F4', 'g': 'G4', 'h': 'A4', 'j': 'B4', 'k': 'C5',
+                'q': 'C#3', 'w': 'D#3', 'e': 'F#3', 'r': 'G#3', 't': 'A#3',
+                'y': 'C#4', 'u': 'D#4', 'i': 'F#4', 'o': 'G#4', 'p': 'A#4'
+            };
+            
+            const keyToElement = {};
+            allKeys.forEach(key => {
+                keyToElement[key.dataset.note] = key;
+            });
+            
+            document.addEventListener('keydown', e => {
+                const note = keyboardMap[e.key.toLowerCase()];
+                if (note && !activeNotes[note]) {
+                    playNote(note);
+                    keyToElement[note].classList.add('active');
+                }
+            });
+            
+            document.addEventListener('keyup', e => {
+                const note = keyboardMap[e.key.toLowerCase()];
+                if (note) {
+                    stopNote(note);
+                    keyToElement[note].classList.remove('active');
+                }
+            });
+            
+            // Play and stop notes
+            function playNote(note) {
+                synth.triggerAttack(note);
+                activeNotes[note] = true;
+            }
+            
+            function stopNote(note) {
+                synth.triggerRelease(note);
+                delete activeNotes[note];
+            }
+            
+            // Song playback
+            let currentSongTimeout = null;
+            let isPlaying = false;
+            let currentSongButton = null;
+            
+            const songButtons = document.querySelectorAll('.song-button');
+            songButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const songName = this.dataset.song;
+                    
+                    if (isPlaying) {
+                        // If same song button clicked, stop playback
+                        if (currentSongButton === this) {
+                            stopSong();
+                            return;
+                        } else {
+                            // Stop current song before playing new one
+                            stopSong();
+                        }
+                    }
+                    
+                    // Play selected song
+                    playSong(songName);
+                    isPlaying = true;
+                    currentSongButton = this;
+                    this.classList.add('active');
+                    this.textContent = 'Stop';
+                });
+            });
+            
+            function playSong(songName) {
+                const song = songs[songName];
+                const startTime = Tone.now();
+                
+                const timeouts = [];
+                
+                song.forEach(({ note, time, duration = 0.3 }) => {
+                    // Schedule note start
+                    const startTimeout = setTimeout(() => {
+                        playNote(note);
+                        if (keyToElement[note]) {
+                            keyToElement[note].classList.add('active');
+                        }
+                        
+                        // Schedule note end
+                        const releaseTimeout = setTimeout(() => {
+                            stopNote(note);
+                            if (keyToElement[note]) {
+                                keyToElement[note].classList.remove('active');
+                            }
+                        }, duration * 1000);
+                        
+                        timeouts.push(releaseTimeout);
+                    }, time * 1000);
+                    
+                    timeouts.push(startTimeout);
+                });
+                
+                // Schedule end of song
+                const songDuration = Math.max(...song.map(n => n.time + (n.duration || 0.5))) + 1;
+                const endTimeout = setTimeout(() => {
+                    stopSong();
+                }, songDuration * 1000);
+                
+                timeouts.push(endTimeout);
+                
+                // Store all timeouts for cancellation
+                currentSongTimeout = timeouts;
+            }
+            
+            function stopSong() {
+                if (currentSongTimeout) {
+                    currentSongTimeout.forEach(clearTimeout);
+                    currentSongTimeout = null;
+                }
+                
+                // Release all keys
+                Object.keys(activeNotes).forEach(note => {
+                    stopNote(note);
+                    if (keyToElement[note]) {
+                        keyToElement[note].classList.remove('active');
+                    }
+                });
+                
+                // Reset button
+                if (currentSongButton) {
+                    currentSongButton.classList.remove('active');
+                    currentSongButton.textContent = currentSongButton.textContent.replace('Stop', currentSongButton.dataset.song === 'twinkle' ? 'Twinkle Little Star' : 
+                                                              currentSongButton.dataset.song === 'furElise' ? 'Für Elise' :
+                                                              currentSongButton.dataset.song === 'moonlight' ? 'Moonlight Sonata' : 'Canon in D');
+                    currentSongButton = null;
+                }
+                
+                isPlaying = false;
+            }
+        });
+    </script>
+</body>
+</html>
